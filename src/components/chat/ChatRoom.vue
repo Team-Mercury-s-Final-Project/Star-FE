@@ -301,7 +301,8 @@ export default {
     },
     async connectWebSocket() {
       const baseUrl = import.meta.env.VITE_SERVER_HOST_BASE.replace(/^https?:\/\//, "");
-      const socket = new WebSocket(`wss://${baseUrl}/chat`);
+      const protocol = import.meta.env.VITE_SERVER_HOST_BASE.startsWith("https") ? "wss" : "ws";
+      const socket = new WebSocket(`${protocol}://${baseUrl}/chat`);
       this.stompClient = Stomp.over(socket);
       this.stompClient.heartbeat.outgoing = 25000;
       this.stompClient.heartbeat.incoming = 0;
@@ -354,18 +355,18 @@ export default {
           // 읽음 정보 응답 구독. 메시지를 받을 때 있었다면 '읽음'처리.
           //현재 접속중인 사용자 수만큼 읽음 메시지를 전송.
           this.stompClient.subscribe(
-            `/topic/readCheck.response.${this.chatRoomId}`,
+            `/topic/readCheck.${this.chatRoomId}`,
             (readInfo) => {
               try {
                 const readData = JSON.parse(readInfo.body);
                 console.log("읽은 사용자 정보", readData);
                 const messageIndex = this.messages.findIndex(
-                  (msg) => msg.id === readData.chatMessageId
+                  (msg) => msg.id === readData.data.chatMessageId
                 );
                 if (messageIndex !== -1) {
                   // unreadCount를 직접 설정
                   this.messages[messageIndex].unreadCount =
-                    readData.unreadCount;
+                    readData.data.unreadCount;
                 }
               } catch (error) {
                 console.error("읽음 정보 파싱 오류 ::", error);
@@ -463,6 +464,10 @@ export default {
             this.nickName = this.chatMembers.find(
               (member) => member.id === this.currentUserId
             ).nickName;
+            this.profileImgUrl = this.chatMembers.find(
+              (member) => member.id === this.currentUserId
+            ).profileImg;
+
             //채팅방 타입 체크
             if (chatData.chatRoomType === "GROUP") {
               this.chatRoomType = "GROUP";
